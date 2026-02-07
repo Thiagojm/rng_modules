@@ -4,8 +4,13 @@ Software-based cryptographically secure random number generator using Python's
 secrets module. Serves as a fallback when hardware RNGs are not available.
 """
 
+import asyncio
 import secrets
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
+
+# Module-level executor (1 worker for async operations)
+_executor = ThreadPoolExecutor(max_workers=1)
 
 
 def is_device_available() -> bool:
@@ -108,6 +113,113 @@ def random_int(min: int = 0, max: Optional[int] = None) -> int:
 def close() -> None:
     """Close and release any resources.
 
-    For pseudo_rng, this is a no-op. Provided for API consistency.
+    For pseudo_rng, this is a no-op for sync operations.
+    Provided for API consistency with hardware RNG modules.
+    Note: Does not shut down async executor to allow reuse.
+    Use close_async() to properly shut down async resources.
     """
     pass
+
+
+# Async versions of all functions
+
+
+async def get_bytes_async(n: int) -> bytes:
+    """Async version of get_bytes.
+
+    Non-blocking for GUI applications. Uses thread pool executor
+    to run sync operation in background thread.
+
+    Args:
+        n: Number of bytes to generate. Must be positive.
+
+    Returns:
+        Random bytes.
+
+    Raises:
+        ValueError: If n <= 0
+        asyncio.CancelledError: If operation is cancelled
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_bytes, n)
+    except asyncio.CancelledError:
+        # Cleanup on cancellation
+        close()
+        raise
+
+
+async def get_bits_async(n: int) -> bytes:
+    """Async version of get_bits.
+
+    Args:
+        n: Number of bits to generate. Must be positive.
+
+    Returns:
+        Bytes containing at least n random bits.
+
+    Raises:
+        ValueError: If n <= 0
+        asyncio.CancelledError: If operation is cancelled
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def get_exact_bits_async(n: int) -> bytes:
+    """Async version of get_exact_bits.
+
+    Args:
+        n: Number of bits to generate. Must be positive and divisible by 8.
+
+    Returns:
+        Bytes containing exactly n random bits.
+
+    Raises:
+        ValueError: If n <= 0 or if n is not divisible by 8
+        asyncio.CancelledError: If operation is cancelled
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_exact_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def random_int_async(min_val: int = 0, max_val: Optional[int] = None) -> int:
+    """Async version of random_int.
+
+    Args:
+        min_val: Minimum value (inclusive). Defaults to 0.
+        max_val: Maximum value (exclusive). If None, generates using full range.
+
+    Returns:
+        Random integer in range [min_val, max_val).
+
+    Raises:
+        ValueError: If min_val >= max_val or if min_val < 0 when max_val is None
+        asyncio.CancelledError: If operation is cancelled
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, random_int, min_val, max_val)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def close_async() -> None:
+    """Async version of close.
+
+    Calls sync close() and shuts down the executor.
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(_executor, close)
+    finally:
+        _executor.shutdown(wait=False)
