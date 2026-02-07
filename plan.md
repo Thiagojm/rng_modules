@@ -41,50 +41,127 @@ if intel_seed.is_device_available():
 
 ## Implementation Plan
 
+### Design Decisions (Final)
+
+1. **Executor Scope**: Module-level `ThreadPoolExecutor(max_workers=1)` per module
+   - Prevents concurrent hardware access
+   - One worker per RNG device
+   - Isolated between modules
+
+2. **Executor Shutdown**: In `close()` function
+   - Shut down executor when `close()` is called
+   - Releases resources properly
+
+3. **is_device_available()**: No async version needed
+   - Fast operation, synchronous is fine
+
+4. **Cancellation Handling**: Option B - Add cleanup logic
+   - Call `close()` on `CancelledError`
+   - Ensures device state is reset
+
+5. **Type Stubs**: Not needed now
+   - Keep it simple
+
+6. **Testing**: Test with actual hardware
+   - All devices are connected
+   - Test cancellation and edge cases
+
 ### 1. Add Async Variants to Each Module
-For each core.py file, add async versions using thread pool executor:
+
+**Pattern for each core.py:**
 
 ```python
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from typing import Optional
 
-# Existing sync functions remain unchanged
+# Module-level executor (1 worker to prevent concurrent hardware access)
+_executor = ThreadPoolExecutor(max_workers=1)
+
+# Existing sync functions remain unchanged...
 
 async def get_bytes_async(n: int) -> bytes:
-    """Async version of get_bytes. Non-blocking for GUI applications."""
+    """Async version of get_bytes.
+    
+    Non-blocking for GUI applications. Uses thread pool executor
+    to run sync operation in background thread.
+    
+    Args:
+        n: Number of bytes to generate. Must be positive.
+        
+    Returns:
+        Random bytes.
+        
+    Raises:
+        ValueError: If n <= 0
+        asyncio.CancelledError: If operation is cancelled
+    """
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, get_bytes, n)
+    try:
+        return await loop.run_in_executor(_executor, get_bytes, n)
+    except asyncio.CancelledError:
+        # Cleanup on cancellation
+        close()
+        raise
 
 async def get_bits_async(n: int) -> bytes:
+    """Async version of get_bits."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, get_bits, n)
+    try:
+        return await loop.run_in_executor(_executor, get_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
 
 async def get_exact_bits_async(n: int) -> bytes:
+    """Async version of get_exact_bits."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, get_exact_bits, n)
+    try:
+        return await loop.run_in_executor(_executor, get_exact_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
 
 async def random_int_async(min_val: int = 0, max_val: Optional[int] = None) -> int:
+    """Async version of random_int."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, random_int, min_val, max_val)
+    try:
+        return await loop.run_in_executor(_executor, random_int, min_val, max_val)
+    except asyncio.CancelledError:
+        close()
+        raise
 
 async def close_async() -> None:
+    """Async version of close.
+    
+    Calls sync close() and shuts down the executor.
+    """
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, close)
+    try:
+        await loop.run_in_executor(_executor, close)
+    finally:
+        _executor.shutdown(wait=False)
 ```
 
-**Note**: Using `_async` suffix instead of `a` prefix for clarity and Python convention.
-
 ### 2. Update Module Exports
+
 Add async functions to `__all__` in each `__init__.py`:
 
 ```python
 __all__ = [
+    # Sync API
     "is_device_available",
-    "get_bytes", "get_bytes_async",
-    "get_bits", "get_bits_async", 
-    "get_exact_bits", "get_exact_bits_async",
-    "random_int", "random_int_async",
-    "close", "close_async",
+    "get_bytes",
+    "get_bits",
+    "get_exact_bits",
+    "random_int",
+    "close",
+    # Async API
+    "get_bytes_async",
+    "get_bits_async",
+    "get_exact_bits_async",
+    "random_int_async",
+    "close_async",
 ]
 ```
 
@@ -99,9 +176,90 @@ __all__ = [
 - Document PySide6-specific usage with QtAsyncio
 
 ### 5. Testing
-- Add async test cases for each module
-- Test with multiple event loops (asyncio.run, QtAsyncio.run)
-- Verify cancellation works properly
+
+**One comprehensive test file per module:** `test_[module]_async.py`
+
+**Test structure:**
+
+```python
+import asyncio
+import sys
+from rng_devices import [module]
+
+async def test_get_bytes_async():
+    """Test basic async byte generation."""
+    print("Testing get_bytes_async...")
+    if not [module].is_device_available():
+        print("  [SKIP] Device not available")
+        return True
+    
+    try:
+        data = await [module].get_bytes_async(32)
+        assert len(data) == 32, f"Expected 32 bytes, got {len(data)}"
+        print("  [OK] get_bytes_async(32)")
+        return True
+    except Exception as e:
+        print(f"  [FAIL] {e}")
+        return False
+
+async def test_cancellation():
+    """Test cancellation handling."""
+    print("Testing cancellation...")
+    if not [module].is_device_available():
+        print("  [SKIP] Device not available")
+        return True
+    
+    try:
+        # Start a long operation and cancel it
+        task = asyncio.create_task([module].get_bytes_async(1024))
+        await asyncio.sleep(0.01)  # Let it start
+        task.cancel()
+        
+        try:
+            await task
+        except asyncio.CancelledError:
+            print("  [OK] Task cancelled properly")
+            return True
+    except Exception as e:
+        print(f"  [FAIL] {e}")
+        return False
+
+async def test_edge_cases():
+    """Test edge cases and error handling."""
+    print("Testing edge cases...")
+    # Test invalid inputs, boundary conditions, etc.
+    pass
+
+async def main():
+    """Run all async tests."""
+    print(f"\nTesting [module] async methods...\n")
+    
+    results = []
+    results.append(await test_get_bytes_async())
+    results.append(await test_get_bits_async())
+    results.append(await test_get_exact_bits_async())
+    results.append(await test_random_int_async())
+    results.append(await test_close_async())
+    results.append(await test_cancellation())
+    results.append(await test_edge_cases())
+    
+    print("\n" + "="*50)
+    if all(results):
+        print("SUCCESS: All async tests passed!")
+        return 0
+    else:
+        print("FAILED: Some tests failed")
+        return 1
+
+if __name__ == "__main__":
+    sys.exit(asyncio.run(main()))
+```
+
+**Test order:**
+1. `test_pseudo_async.py` - Basic functionality (always available)
+2. `test_intel_seed_async.py` - With RDSEED hardware
+3. `test_truerng_async.py` - With TrueRNG device
+4. `test_bitbabbler_async.py` - With BitBabbler device
 
 ### 6. Dependencies
 - Keep asyncio as stdlib (no new required deps)
@@ -162,13 +320,39 @@ asyncio.run(main())
 - **Hardware RNG Blocking**: Serial operations still block thread, but isolated from GUI thread
 - **Complexity**: Async code is more complex - provide clear sync/async examples
 
+## Implementation Phases
+
+### Phase 1: pseudo_rng (Template Module)
+- [ ] Add executor and async methods to `pseudo_rng/core.py`
+- [ ] Update `pseudo_rng/__init__.py` exports
+- [ ] Create `test_pseudo_async.py` with comprehensive tests
+- [ ] Verify pattern works correctly
+
+### Phase 2: Hardware RNG Modules
+- [ ] Implement async for `intel_seed`
+- [ ] Implement async for `truerng`
+- [ ] Implement async for `bitbabbler_rng`
+- [ ] Test each with actual hardware
+
+### Phase 3: Documentation
+- [ ] Update main README with async examples
+- [ ] Add async usage section to each module's README
+- [ ] Create PySide6 GUI integration example
+
 ## Timeline
 1. ✅ IntelSeed compatibility fixes (completed)
 2. ✅ Simplify rng_devices/__init__.py (completed)
-3. 🔄 Implement async variants in all modules (1-2 hours)
-4. 🔄 Update documentation and examples (1 hour)
-5. 🔄 Add tests (1 hour)
-6. 🔄 Integration testing with PySide6 (30 min)
+3. ✅ Plan finalized (completed)
+4. 🔄 Phase 1: pseudo_rng template (30 min)
+5. 🔄 Phase 2: Hardware modules (1 hour)
+6. 🔄 Phase 3: Documentation (30 min)
 
 ## Next Steps
-Ready to implement async variants in all four modules. Should I proceed?
+**Starting Phase 1**: Implement async support for pseudo_rng module as the template.
+
+**Implementation order:**
+1. pseudo_rng/core.py - Add async methods
+2. pseudo_rng/__init__.py - Update exports
+3. test_pseudo_async.py - Create test file
+
+Ready to start implementation now!
