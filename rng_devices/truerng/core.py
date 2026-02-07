@@ -6,10 +6,15 @@ Device connects via USB and appears as a serial port.
 Dependencies: pyserial
 """
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from serial.tools import list_ports
 import serial
 import os
 from typing import Optional
+
+# Module-level executor for async operations (1 worker to prevent concurrent hardware access)
+_executor = ThreadPoolExecutor(max_workers=1)
 
 
 def _is_trng_port(port) -> bool:
@@ -162,46 +167,160 @@ def _bytes_to_int(data: bytes) -> int:
     return int.from_bytes(data, "big")
 
 
-def random_int(min: int = 0, max: Optional[int] = None) -> int:
+def random_int(min_val: int = 0, max_val: Optional[int] = None) -> int:
     """Generate a cryptographically secure random integer from TrueRNG.
 
     Args:
-        min: Minimum value (inclusive). Defaults to 0.
-        max: Maximum value (exclusive). If None, generates 32-bit value.
+        min_val: Minimum value (inclusive). Defaults to 0.
+        max_val: Maximum value (exclusive). If None, generates 32-bit value.
 
     Returns:
-        Random integer in range [min, max).
+        Random integer in range [min_val, max_val).
 
     Raises:
-        ValueError: If min >= max
+        ValueError: If min_val >= max_val
         RuntimeError: If device not found
     """
-    if max is None:
+    if max_val is None:
         # Generate using hardware entropy
         return _bytes_to_int(get_bytes(4))
 
-    if min >= max:
-        raise ValueError(f"min must be less than max, got min={min}, max={max}")
+    if min_val >= max_val:
+        raise ValueError(
+            f"min_val must be less than max_val, got min_val={min_val}, max_val={max_val}"
+        )
 
-    range_size = max - min
+    range_size = max_val - min_val
 
     # Calculate bits needed
     import math
 
     bits_needed = max(1, math.ceil(math.log2(range_size)))
+    n_bytes = (bits_needed + 7) // 8
 
     # Use rejection sampling for uniform distribution
     while True:
-        data = get_exact_bits(bits_needed)
+        data = get_bytes(n_bytes)
         val = _bytes_to_int(data)
+        # Mask off extra bits to get exactly bits_needed bits
+        val &= (1 << bits_needed) - 1
         if val < range_size:
-            return min + val
+            return min_val + val
 
 
 def close() -> None:
     """Close and release any resources.
 
     For truerng, connections are closed after each read.
-    This function is a no-op for API consistency.
+    This function is a no-op for sync operations.
+    Use close_async() to properly shut down async executor.
     """
     pass
+
+
+# Async versions of all functions
+
+
+async def get_bytes_async(n: int) -> bytes:
+    """Async version of get_bytes.
+
+    Non-blocking for GUI applications. Uses thread pool executor
+    to run sync operation in background thread.
+
+    Args:
+        n: Number of bytes to generate. Must be positive.
+
+    Returns:
+        Random bytes.
+
+    Raises:
+        ValueError: If n <= 0
+        asyncio.CancelledError: If operation is cancelled
+        RuntimeError: If device not found or read fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_bytes, n)
+    except asyncio.CancelledError:
+        # Cleanup on cancellation
+        close()
+        raise
+
+
+async def get_bits_async(n: int) -> bytes:
+    """Async version of get_bits.
+
+    Args:
+        n: Number of bits to generate. Must be positive.
+
+    Returns:
+        Bytes containing at least n random bits.
+
+    Raises:
+        ValueError: If n <= 0
+        asyncio.CancelledError: If operation is cancelled
+        RuntimeError: If device not found or read fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def get_exact_bits_async(n: int) -> bytes:
+    """Async version of get_exact_bits.
+
+    Args:
+        n: Number of bits to generate. Must be positive and divisible by 8.
+
+    Returns:
+        Bytes containing exactly n random bits.
+
+    Raises:
+        ValueError: If n <= 0 or if n is not divisible by 8
+        asyncio.CancelledError: If operation is cancelled
+        RuntimeError: If device not found or read fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_exact_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def random_int_async(min_val: int = 0, max_val: Optional[int] = None) -> int:
+    """Async version of random_int.
+
+    Args:
+        min_val: Minimum value (inclusive). Defaults to 0.
+        max_val: Maximum value (exclusive). If None, generates using full range.
+
+    Returns:
+        Random integer in range [min_val, max_val).
+
+    Raises:
+        ValueError: If min_val >= max_val or if min_val < 0 when max_val is None
+        asyncio.CancelledError: If operation is cancelled
+        RuntimeError: If device not found or read fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, random_int, min_val, max_val)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def close_async() -> None:
+    """Async version of close.
+
+    Calls sync close() and shuts down the executor.
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(_executor, close)
+    finally:
+        _executor.shutdown(wait=False)
