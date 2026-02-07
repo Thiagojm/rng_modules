@@ -5,10 +5,12 @@ This module provides access to Intel's RDSEED instruction for generating
 cryptographically secure random numbers using hardware entropy.
 """
 
+import asyncio
 import ctypes
 import os
 import math
 import platform
+from concurrent.futures import ThreadPoolExecutor
 
 
 class RDSEEDError(Exception):
@@ -111,34 +113,23 @@ class IntelSeed:
         """
         Generate exactly n_bits of raw entropy from RDSEED.
 
-        This function generates the minimum number of bytes needed and
-        truncates any extra bits to return exactly the requested number of bits.
-
         Args:
-            n_bits: Number of bits to generate (must be positive).
+            n_bits: Number of bits to generate (must be positive and divisible by 8).
 
         Returns:
             bytes: Raw entropy data with exactly n_bits.
 
         Raises:
             RDSEEDError: If the requested number of bits cannot be generated.
-            ValueError: If n_bits is not positive.
+            ValueError: If n_bits <= 0 or if n_bits is not divisible by 8.
         """
         if n_bits <= 0:
             raise ValueError("n_bits must be positive")
-
-        n_bytes = math.ceil(n_bits / 8)
-        data = self.get_bytes(n_bytes)
-
-        # Truncate to exact number of bits
         if n_bits % 8 != 0:
-            # Mask off the extra bits in the last byte
-            last_byte = data[-1]
-            mask = (1 << (n_bits % 8)) - 1
-            last_byte &= mask
-            data = data[:-1] + bytes([last_byte])
+            raise ValueError(f"n_bits must be divisible by 8, got {n_bits}")
 
-        return data
+        n_bytes = n_bits // 8
+        return self.get_bytes(n_bytes)
 
     def random_int(self, min_val: int = 0, max_val: int | None = None) -> int:
         """
@@ -172,10 +163,13 @@ class IntelSeed:
 
         range_size = max_val - min_val
         bits_needed = max(1, math.ceil(math.log2(range_size)))
+        n_bytes = (bits_needed + 7) // 8
 
         while True:
-            data = self.get_exact_bits(bits_needed)
+            data = self.get_bytes(n_bytes)
             value = int.from_bytes(data, "big")
+            # Mask off extra bits to get exactly bits_needed bits
+            value &= (1 << bits_needed) - 1
             if value < range_size:
                 return min_val + value
 
@@ -242,6 +236,10 @@ def close() -> None:
         _rdseed = None
 
 
+# Module-level executor for async operations (1 worker to prevent concurrent hardware access)
+_executor = ThreadPoolExecutor(max_workers=1)
+
+
 # Global instance for convenience
 _rdseed = None
 
@@ -295,6 +293,114 @@ def random_int(min_val: int = 0, max_val: int | None = None) -> int:
         int: A random integer N where min_val <= N < max_val.
     """
     return get_rdseed().random_int(min_val, max_val)
+
+
+# Async versions of all functions
+
+
+async def get_bytes_async(n: int) -> bytes:
+    """Async version of get_bytes.
+
+    Non-blocking for GUI applications. Uses thread pool executor
+    to run sync operation in background thread.
+
+    Args:
+        n: Number of bytes to generate. Must be positive.
+
+    Returns:
+        Random bytes.
+
+    Raises:
+        ValueError: If n <= 0
+        asyncio.CancelledError: If operation is cancelled
+        RDSEEDError: If RDSEED operation fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_bytes, n)
+    except asyncio.CancelledError:
+        # Cleanup on cancellation
+        close()
+        raise
+
+
+async def get_bits_async(n: int) -> bytes:
+    """Async version of get_bits.
+
+    Args:
+        n: Number of bits to generate. Must be positive.
+
+    Returns:
+        Bytes containing at least n random bits.
+
+    Raises:
+        ValueError: If n <= 0
+        asyncio.CancelledError: If operation is cancelled
+        RDSEEDError: If RDSEED operation fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def get_exact_bits_async(n: int) -> bytes:
+    """Async version of get_exact_bits.
+
+    Args:
+        n: Number of bits to generate. Must be positive and divisible by 8.
+
+    Returns:
+        Bytes containing exactly n random bits.
+
+    Raises:
+        ValueError: If n <= 0 or if n is not divisible by 8
+        asyncio.CancelledError: If operation is cancelled
+        RDSEEDError: If RDSEED operation fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, get_exact_bits, n)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def random_int_async(min_val: int = 0, max_val: int | None = None) -> int:
+    """Async version of random_int.
+
+    Args:
+        min_val: Minimum value (inclusive). Defaults to 0.
+        max_val: Maximum value (exclusive). If None, generates using full range.
+
+    Returns:
+        Random integer in range [min_val, max_val).
+
+    Raises:
+        ValueError: If min_val >= max_val or if min_val < 0 when max_val is None
+        asyncio.CancelledError: If operation is cancelled
+        RDSEEDError: If RDSEED operation fails
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        return await loop.run_in_executor(_executor, random_int, min_val, max_val)
+    except asyncio.CancelledError:
+        close()
+        raise
+
+
+async def close_async() -> None:
+    """Async version of close.
+
+    Calls sync close() and shuts down the executor.
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        await loop.run_in_executor(_executor, close)
+    finally:
+        _executor.shutdown(wait=False)
 
 
 # Example usage
