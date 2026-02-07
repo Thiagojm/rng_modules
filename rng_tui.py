@@ -134,12 +134,26 @@ class ConfigPanel(Static):
             yield Label("Duration (seconds, 0 = infinite):")
             yield Input(value="60", id="duration_input", type="integer")
 
+            yield Label("Folds (BitBabbler only, 0=raw):")
+            yield Select(
+                [(str(i), i) for i in range(5)],
+                id="folds_select",
+                value=0,
+                disabled=True,
+            )
+
             yield Label("Output File (auto-generated if empty):")
             yield Input(
                 value="",
                 id="output_input",
                 placeholder="./rng_data_YYYYMMDD_HHMMSS.csv",
             )
+
+    def on_select_changed(self, event: Select.Changed) -> None:
+        """Handle device selection changes."""
+        if event.select.id == "device_select":
+            folds_select = self.query_one("#folds_select", Select)
+            folds_select.disabled = event.value != "bitbabbler_rng"
 
 
 class DataTablePanel(Static):
@@ -200,7 +214,7 @@ class RNGCollectorApp(App):
     /* Top row container - holds ConfigPanel and StatsPanel side by side */
     .top-container {
         layout: horizontal;
-        height: 27;
+        height: 30;
     }
     
     ConfigPanel {
@@ -250,6 +264,11 @@ class RNGCollectorApp(App):
         margin: 0 0 0 0;
     }
     
+    Select:disabled {
+        opacity: 0.5;
+        background: #333;
+    }
+    
     /* Buttons within StatsPanel */
     .stats-buttons {
         layout: horizontal;
@@ -288,9 +307,11 @@ class RNGCollectorApp(App):
     def __init__(self):
         super().__init__()
         self.device_module = None
+        self.device_key = None
         self.sample_bytes = 256  # 2048 bits / 8
         self.frequency = 1.0
         self.duration = 60
+        self.folds = 0  # BitBabbler folding level (0-4)
         self.output_file = None
         self.is_collecting = False
         self.is_paused = False
@@ -363,14 +384,61 @@ class RNGCollectorApp(App):
                 return
 
             # Set device
+            self.device_key = device_key
             self.device_module = DEVICES[device_key]["module"]
 
-            # Check device availability
-            if not self.device_module.is_device_available():
-                self.notify(
-                    f"Device {DEVICES[device_key]['name']} not available",
-                    severity="error",
-                )
+            # Get folds for BitBabbler
+            if device_key == "bitbabbler_rng":
+                self.folds = config.query_one("#folds_select", Select).value
+            else:
+                self.folds = 0
+
+            # Clear any stale device references before checking
+            if device_key in ("bitbabbler_rng", "intel_seed", "truerng"):
+                try:
+                    if device_key == "bitbabbler_rng":
+                        bitbabbler_rng.close()
+                        await asyncio.sleep(0.3)
+                    elif device_key == "intel_seed":
+                        intel_seed.close()
+                        await asyncio.sleep(0.1)
+                    elif device_key == "truerng":
+                        # TrueRNG doesn't need explicit close, executor stays alive
+                        pass
+                except Exception:
+                    pass  # Ignore errors - device might not have been opened
+
+            # Check device availability with retry logic
+            device_available = False
+            error_msg = ""
+            for attempt in range(3):
+                try:
+                    if self.device_module.is_device_available():
+                        device_available = True
+                        break
+                except Exception as e:
+                    error_msg = str(e)
+
+                if attempt < 2:  # Don't sleep on last attempt
+                    await asyncio.sleep(0.5)
+
+            if not device_available:
+                if device_key == "bitbabbler_rng":
+                    self.notify(
+                        f"Device {DEVICES[device_key]['name']} not available. "
+                        "The USB device may be busy. Try waiting a few seconds or reconnecting.",
+                        severity="error",
+                    )
+                elif error_msg:
+                    self.notify(
+                        f"Device {DEVICES[device_key]['name']} not available: {error_msg}",
+                        severity="error",
+                    )
+                else:
+                    self.notify(
+                        f"Device {DEVICES[device_key]['name']} not available",
+                        severity="error",
+                    )
                 return
 
             # Set output file
@@ -428,7 +496,7 @@ class RNGCollectorApp(App):
         self._update_buttons()
 
     async def action_stop(self):
-        """Stop data collection."""
+        """Stop data collection and properly release device resources."""
         if not self.is_collecting:
             return
 
@@ -442,11 +510,35 @@ class RNGCollectorApp(App):
             except asyncio.CancelledError:
                 pass
 
+        # Close device resources for hardware RNGs
+        if self.device_key and self.device_module:
+            try:
+                if self.device_key == "bitbabbler_rng":
+                    # Close BitBabbler cached device
+                    bitbabbler_rng.close()
+                    await asyncio.sleep(0.5)  # USB release delay
+                elif self.device_key == "intel_seed":
+                    # Clear Intel RDSEED global instance
+                    intel_seed.close()
+                    await asyncio.sleep(0.1)
+                elif self.device_key == "truerng":
+                    # TrueRNG closes serial port per operation, no persistent resources
+                    # Don't call close_async() as it shuts down the executor permanently
+                    pass
+                # PseudoRNG has no resources to release
+            except Exception as e:
+                # Log but don't fail - device might already be closed
+                print(f"Warning: Error closing device: {e}")
+
         # Close CSV file
         if self.csv_file:
             self.csv_file.close()
             self.csv_file = None
             self.csv_writer = None
+
+        # Reset device references
+        self.device_module = None
+        self.device_key = None
 
         # Update UI
         self._update_buttons()
@@ -492,7 +584,12 @@ class RNGCollectorApp(App):
 
                 # Collect sample
                 timestamp = datetime.now()
-                data = await self.device_module.get_bytes_async(self.sample_bytes)
+                if self.device_key == "bitbabbler_rng":
+                    data = await self.device_module.get_bytes_async(
+                        self.sample_bytes, self.folds
+                    )
+                else:
+                    data = await self.device_module.get_bytes_async(self.sample_bytes)
 
                 # Calculate statistics
                 ones = sum(bin(b).count("1") for b in data)
