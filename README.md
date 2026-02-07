@@ -72,6 +72,7 @@ for module in [intel_seed, truerng, bitbabbler_rng, pseudo_rng]:
 
 All modules expose:
 
+**Sync API:**
 - `is_device_available() -> bool`: Check if device is accessible
 - `get_bytes(n: int) -> bytes`: Generate n random bytes
 - `get_bits(n: int) -> bytes`: Generate at least n bits (rounds up to bytes)
@@ -79,14 +80,79 @@ All modules expose:
 - `random_int(min_val: int = 0, max_val: Optional[int] = None) -> int`: Random integer [min_val, max_val)
 - `close() -> None`: Cleanup resources
 
+**Async API (for GUI applications):**
+- `get_bytes_async(n: int) -> bytes`: Async version of get_bytes
+- `get_bits_async(n: int) -> bytes`: Async version of get_bits
+- `get_exact_bits_async(n: int) -> bytes`: Async version of get_exact_bits
+- `random_int_async(min_val: int = 0, max_val: Optional[int] = None) -> int`: Async version of random_int
+- `close_async() -> None`: Async cleanup with executor shutdown
+
+### Async Usage Example (PySide6 GUI)
+
+```python
+import asyncio
+from PySide6.QtWidgets import QApplication, QWidget, QPushButton, QVBoxLayout, QLabel
+from PySide6 import QtAsyncio
+from rng_devices import intel_seed
+
+class RNGWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.selected_rng = intel_seed  # User selects this in GUI
+        
+        layout = QVBoxLayout(self)
+        self.label = QLabel("Click to generate random data")
+        layout.addWidget(self.label)
+        
+        btn = QPushButton("Generate")
+        btn.clicked.connect(self.on_generate)
+        layout.addWidget(btn)
+    
+    def on_generate(self):
+        # Trigger async operation from GUI thread
+        asyncio.create_task(self.generate_data())
+    
+    async def generate_data(self):
+        if self.selected_rng.is_device_available():
+            try:
+                data = await self.selected_rng.get_bytes_async(32)
+                self.label.setText(f"Generated: {data.hex()}")
+            except Exception as e:
+                self.label.setText(f"Error: {e}")
+        else:
+            self.label.setText("Device not connected")
+
+async def main():
+    app = QApplication([])
+    window = RNGWindow()
+    window.show()
+    await asyncio.Event().wait()  # Run forever
+
+if __name__ == "__main__":
+    QtAsyncio.run(main())
+```
+
+### Async Features
+
+- **Non-blocking**: GUI remains responsive during RNG operations
+- **Cancellation support**: Operations can be cancelled cleanly
+- **Thread safety**: Each module uses a dedicated ThreadPoolExecutor (1 worker)
+- **Resource cleanup**: close_async() properly shuts down executor
+
 ### Testing Individual Modules
 
 ```bash
-# Test each RNG module
+# Test sync API
 uv run python rng_devices/test_pseudo.py
 uv run python rng_devices/test_true.py
 uv run python rng_devices/test_bit.py
 uv run python rng_devices/test_intel_seed.py
+
+# Test async API
+uv run python rng_devices/test_pseudo_async.py
+uv run python rng_devices/test_truerng_async.py
+uv run python rng_devices/test_bitbabbler_async.py
+uv run python rng_devices/test_intel_seed_async.py
 ```
 
 ### API Compatibility Test
