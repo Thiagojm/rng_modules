@@ -1,4 +1,4 @@
-from pseudo_rng import get_bytes, get_bits, get_exact_bits
+from rng_devices.pseudo_rng import get_bytes, get_bits, get_exact_bits
 
 # Generate 32 random bytes (256 bits)
 data1 = get_bytes(32)
@@ -14,7 +14,7 @@ data3 = get_exact_bits(96)
 print(data3)
 
 # Count ones for statistical analysis
-ones = sum(bin(b).count('1') for b in data3)
+ones = sum(bin(b).count("1") for b in data3)
 zeros = len(data3) * 8 - ones
 print(ones)
 print(zeros)

@@ -11,7 +11,7 @@ import sys
 def test_sync_api_still_works():
     """Verify sync API wasn't broken."""
     print("Testing sync API compatibility...")
-    from pseudo_rng import get_bytes, random_int, close
+    from rng_devices.pseudo_rng import get_bytes, random_int, close
 
     try:
         # Test sync functions still work
@@ -33,7 +33,7 @@ def test_sync_api_still_works():
 async def test_get_bytes_async():
     """Test basic async byte generation."""
     print("Testing get_bytes_async...")
-    from pseudo_rng import get_bytes_async
+    from rng_devices.pseudo_rng import get_bytes_async
 
     try:
         data = await get_bytes_async(32)
@@ -48,7 +48,7 @@ async def test_get_bytes_async():
 async def test_get_bits_async():
     """Test async bit generation."""
     print("Testing get_bits_async...")
-    from pseudo_rng import get_bits_async
+    from rng_devices.pseudo_rng import get_bits_async
 
     try:
         data = await get_bits_async(100)
@@ -68,7 +68,7 @@ async def test_get_bits_async():
 async def test_get_exact_bits_async():
     """Test async exact bit generation."""
     print("Testing get_exact_bits_async...")
-    from pseudo_rng import get_exact_bits_async
+    from rng_devices.pseudo_rng import get_exact_bits_async
 
     try:
         data = await get_exact_bits_async(256)
@@ -83,7 +83,7 @@ async def test_get_exact_bits_async():
 async def test_random_int_async():
     """Test async random integer generation."""
     print("Testing random_int_async...")
-    from pseudo_rng import random_int_async
+    from rng_devices.pseudo_rng import random_int_async
 
     try:
         # Test with range
@@ -110,7 +110,7 @@ async def test_close_async():
     """Test async close."""
     print("Testing close_async...")
     print("  [NOTE] This test should be run last as it shuts down the executor")
-    from pseudo_rng import close_async
+    from rng_devices.pseudo_rng import close_async
 
     try:
         await close_async()
@@ -125,7 +125,7 @@ async def test_close_async():
 async def test_cancellation():
     """Test cancellation handling."""
     print("Testing cancellation handling...")
-    from pseudo_rng import get_bytes_async
+    from rng_devices.pseudo_rng import get_bytes_async
 
     try:
         # Start operation and cancel immediately
@@ -153,7 +153,7 @@ async def test_cancellation():
 async def test_error_handling():
     """Test error handling in async operations."""
     print("Testing error handling...")
-    from pseudo_rng import (
+    from rng_devices.pseudo_rng import (
         get_bytes_async,
         get_exact_bits_async,
         random_int_async,
@@ -195,7 +195,7 @@ async def test_error_handling():
 async def test_multiple_concurrent():
     """Test multiple concurrent async operations."""
     print("Testing concurrent operations...")
-    from pseudo_rng import get_bytes_async
+    from rng_devices.pseudo_rng import get_bytes_async
 
     try:
         # Start multiple operations concurrently

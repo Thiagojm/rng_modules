@@ -11,7 +11,7 @@ import sys
 def test_sync_api_still_works():
     """Verify sync API wasn't broken."""
     print("Testing sync API compatibility...")
-    from truerng import is_device_available, get_bytes, random_int, close
+    from rng_devices.truerng import is_device_available, get_bytes, random_int, close
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
@@ -37,7 +37,7 @@ def test_sync_api_still_works():
 async def test_get_bytes_async():
     """Test basic async byte generation."""
     print("Testing get_bytes_async...")
-    from truerng import is_device_available, get_bytes_async
+    from rng_devices.truerng import is_device_available, get_bytes_async
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
@@ -56,7 +56,7 @@ async def test_get_bytes_async():
 async def test_get_bits_async():
     """Test async bit generation."""
     print("Testing get_bits_async...")
-    from truerng import is_device_available, get_bits_async
+    from rng_devices.truerng import is_device_available, get_bits_async
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
@@ -80,7 +80,7 @@ async def test_get_bits_async():
 async def test_get_exact_bits_async():
     """Test async exact bit generation."""
     print("Testing get_exact_bits_async...")
-    from truerng import is_device_available, get_exact_bits_async
+    from rng_devices.truerng import is_device_available, get_exact_bits_async
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
@@ -99,7 +99,7 @@ async def test_get_exact_bits_async():
 async def test_random_int_async():
     """Test async random integer generation."""
     print("Testing random_int_async...")
-    from truerng import is_device_available, random_int_async
+    from rng_devices.truerng import is_device_available, random_int_async
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
@@ -130,7 +130,7 @@ async def test_close_async():
     """Test async close."""
     print("Testing close_async...")
     print("  [NOTE] This test should be run last as it shuts down the executor")
-    from truerng import close_async
+    from rng_devices.truerng import close_async
 
     try:
         await close_async()
@@ -145,7 +145,7 @@ async def test_close_async():
 async def test_cancellation():
     """Test cancellation handling."""
     print("Testing cancellation handling...")
-    from truerng import is_device_available, get_bytes_async
+    from rng_devices.truerng import is_device_available, get_bytes_async
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
@@ -177,7 +177,7 @@ async def test_cancellation():
 async def test_error_handling():
     """Test error handling in async operations."""
     print("Testing error handling...")
-    from truerng import (
+    from rng_devices.truerng import (
         is_device_available,
         get_bytes_async,
         get_exact_bits_async,
@@ -224,7 +224,7 @@ async def test_error_handling():
 async def test_multiple_concurrent():
     """Test multiple concurrent async operations."""
     print("Testing concurrent operations...")
-    from truerng import is_device_available, get_bytes_async
+    from rng_devices.truerng import is_device_available, get_bytes_async
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
