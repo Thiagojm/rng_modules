@@ -13,6 +13,16 @@ IntelSeed provides access to Intel's RDSEED instruction for generating cryptogra
 - Python 3.13+
 - For building: GCC (Linux) or MinGW-w64 (Windows/Linux cross-compile)
 
+## Platform Support
+
+| Platform | Status | Library File |
+|----------|--------|--------------|
+| **Windows** | ✅ Supported | `librdseed.dll` (included) |
+| **Linux** | ✅ Supported | `librdseed.so` (included) |
+| **macOS** | ❌ Not supported | No `.dylib` available |
+
+The module automatically detects the operating system and loads the appropriate library file. Both Windows (`.dll`) and Linux (`.so`) libraries are included in the package.
+
 ## Installation
 
 ### Building the Shared Library

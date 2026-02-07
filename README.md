@@ -16,6 +16,20 @@ Hardware and software random number generator modules for Python. Supports multi
 - TrueRNG: USB device with pyserial
 - BitBabbler: USB device with pyusb
 
+## Platform Support
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **Windows** | ✅ Supported | Tested and working |
+| **Linux** | ✅ Supported | Should work (uses platform-agnostic code) |
+| **macOS** | ❌ Not supported | No `.dylib` library available |
+
+The library is designed to be cross-platform for Windows and Linux:
+- Intel RDSEED includes both `librdseed.dll` (Windows) and `librdseed.so` (Linux)
+- TrueRNG uses pyserial which works on both platforms
+- BitBabbler uses pyusb with platform detection for libusb
+- Pseudo RNG is pure Python and works everywhere
+
 ## Installation
 
 ```bash
