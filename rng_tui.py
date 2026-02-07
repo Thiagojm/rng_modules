@@ -398,10 +398,10 @@ class RNGCollectorApp(App):
                 try:
                     if device_key == "bitbabbler_rng":
                         bitbabbler_rng.close()
-                        await asyncio.sleep(0.3)
+                        await asyncio.sleep(0.1)  # Reduced from 300ms
                     elif device_key == "intel_seed":
                         intel_seed.close()
-                        await asyncio.sleep(0.1)
+                        await asyncio.sleep(0.05)  # Reduced from 100ms
                     elif device_key == "truerng":
                         # TrueRNG doesn't need explicit close, executor stays alive
                         pass
@@ -420,7 +420,9 @@ class RNGCollectorApp(App):
                     error_msg = str(e)
 
                 if attempt < 2:  # Don't sleep on last attempt
-                    await asyncio.sleep(0.5)
+                    await asyncio.sleep(
+                        0.2
+                    )  # Reduced from 500ms for better responsiveness
 
             if not device_available:
                 if device_key == "bitbabbler_rng":
@@ -514,16 +516,18 @@ class RNGCollectorApp(App):
         if self.device_key and self.device_module:
             try:
                 if self.device_key == "bitbabbler_rng":
+                    # Show feedback to user before closing
+                    self.notify("Closing BitBabbler device...", severity="information")
                     # Close BitBabbler cached device
                     bitbabbler_rng.close()
-                    await asyncio.sleep(0.5)  # USB release delay
+                    # Shorter delay for better responsiveness (200ms instead of 500ms)
+                    await asyncio.sleep(0.2)
                 elif self.device_key == "intel_seed":
                     # Clear Intel RDSEED global instance
                     intel_seed.close()
-                    await asyncio.sleep(0.1)
+                    await asyncio.sleep(0.05)  # Reduced from 100ms
                 elif self.device_key == "truerng":
                     # TrueRNG closes serial port per operation, no persistent resources
-                    # Don't call close_async() as it shuts down the executor permanently
                     pass
                 # PseudoRNG has no resources to release
             except Exception as e:
