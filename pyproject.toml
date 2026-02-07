@@ -12,14 +12,16 @@ dependencies = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-pythonpath = ["rng_devices"]
-markers =
-    hardware: Mark tests requiring hardware devices
-    async: Mark async tests
-addopts =
-    -v
-    --strict-markers
-    --tb=short
+pythonpath = ["."]
+markers = [
+    "hardware: Mark tests requiring hardware devices",
+    "async: Mark async tests"
+]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short"
+]
 
 [dependency-groups]
 dev = [
