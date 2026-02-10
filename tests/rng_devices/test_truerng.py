@@ -15,10 +15,9 @@ def test_is_device_available():
     try:
         result = is_device_available()
         print(f"  [OK] is_device_available() returned: {result}")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 def test_get_bytes():
@@ -28,16 +27,15 @@ def test_get_bytes():
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
-        return True
+        return
 
     try:
         data = get_bytes(32)
         assert len(data) == 32, f"Expected 32 bytes, got {len(data)}"
         print(f"  [OK] get_bytes(32) returned {len(data)} bytes")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 def test_get_bits():
@@ -47,7 +45,7 @@ def test_get_bits():
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
-        return True
+        return
 
     try:
         data = get_bits(100)
@@ -56,10 +54,9 @@ def test_get_bits():
             f"Expected {expected_bytes} bytes, got {len(data)}"
         )
         print(f"  [OK] get_bits(100) returned {len(data)} bytes ({len(data) * 8} bits)")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 def test_get_exact_bits():
@@ -69,16 +66,15 @@ def test_get_exact_bits():
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
-        return True
+        return
 
     try:
         data = get_exact_bits(256)
         assert len(data) == 32, f"Expected 32 bytes, got {len(data)}"
         print(f"  [OK] get_exact_bits(256) returned {len(data)} bytes")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 def test_random_int():
@@ -88,7 +84,7 @@ def test_random_int():
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
-        return True
+        return
 
     try:
         # Test with range
@@ -105,10 +101,9 @@ def test_random_int():
         assert isinstance(val, int), "Should return int"
         print("  [OK] random_int() returned 32-bit int")
 
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 def test_close():
@@ -119,10 +114,9 @@ def test_close():
     try:
         close()  # Should not raise
         print("  [OK] close executed successfully")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 def test_error_handling():
@@ -137,7 +131,7 @@ def test_error_handling():
 
     if not is_device_available():
         print("  [SKIP] TrueRNG device not connected")
-        return True
+        return
 
     errors_caught = 0
 
@@ -166,10 +160,10 @@ def test_error_handling():
             errors_caught += 1
             print("  [OK] ValueError raised for invalid range")
 
-        return errors_caught == 3
+        assert errors_caught == 3, f"Expected 3 errors, got {errors_caught}"
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 def main():

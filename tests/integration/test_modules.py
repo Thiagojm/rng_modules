@@ -85,10 +85,9 @@ def test_individual_modules():
         print(f"FAILED: {len(errors)} error(s) found")
         for error in errors:
             print(f"  - {error}")
-        return False
+        assert False, f"{len(errors)} module test error(s)"
     else:
         print("SUCCESS: All modules work correctly!")
-        return True
 
 
 if __name__ == "__main__":

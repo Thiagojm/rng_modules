@@ -24,10 +24,9 @@ def test_sync_api_still_works():
         close()  # Should not raise
 
         print("  [OK] Sync API works correctly")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def test_get_bytes_async():
@@ -39,10 +38,9 @@ async def test_get_bytes_async():
         data = await get_bytes_async(32)
         assert len(data) == 32, f"Expected 32 bytes, got {len(data)}"
         print(f"  [OK] get_bytes_async(32) returned {len(data)} bytes")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def test_get_bits_async():
@@ -59,10 +57,9 @@ async def test_get_bits_async():
         print(
             f"  [OK] get_bits_async(100) returned {len(data)} bytes ({len(data) * 8} bits)"
         )
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def test_get_exact_bits_async():
@@ -74,10 +71,9 @@ async def test_get_exact_bits_async():
         data = await get_exact_bits_async(256)
         assert len(data) == 32, f"Expected 32 bytes, got {len(data)}"
         print(f"  [OK] get_exact_bits_async(256) returned {len(data)} bytes")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def test_random_int_async():
@@ -100,13 +96,12 @@ async def test_random_int_async():
         assert isinstance(val, int), "Should return int"
         print("  [OK] random_int_async() returned 32-bit int")
 
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
-async def test_close_async():
+async def test_z_close_async():
     """Test async close."""
     print("Testing close_async...")
     print("  [NOTE] This test should be run last as it shuts down the executor")
@@ -116,10 +111,9 @@ async def test_close_async():
         await close_async()
         print("  [OK] close_async executed successfully")
         print("  [NOTE] Executor shut down - async operations will fail after this")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def test_cancellation():
@@ -144,10 +138,9 @@ async def test_cancellation():
         assert len(data) == 32
         print("  [OK] Module still works after cancellation")
 
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def test_error_handling():
@@ -186,10 +179,10 @@ async def test_error_handling():
             errors_caught += 1
             print("  [OK] ValueError raised for invalid range")
 
-        return errors_caught == 3
+        assert errors_caught == 3, f"Expected 3 errors, got {errors_caught}"
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def test_multiple_concurrent():
@@ -212,10 +205,9 @@ async def test_multiple_concurrent():
         assert len(results[2]) == 128, "Third result wrong size"
 
         print(f"  [OK] Completed {len(tasks)} concurrent operations")
-        return True
     except Exception as e:
         print(f"  [FAIL] {e}")
-        return False
+        raise
 
 
 async def main():
@@ -238,7 +230,7 @@ async def main():
     results.append(await test_cancellation())
     results.append(await test_error_handling())
     results.append(await test_multiple_concurrent())
-    results.append(await test_close_async())  # Must be last
+    results.append(await test_z_close_async())  # Must be last
 
     # Summary
     print("\n" + "=" * 60)
