@@ -194,6 +194,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "pyserial" },
     { name = "pyusb" },
+    { name = "textual" },
 ]
 
 [package.dev-dependencies]
@@ -211,6 +212,7 @@ dev = [
 requires-dist = [
     { name = "pyserial", specifier = ">=3.5" },
     { name = "pyusb", specifier = ">=1.3.1" },
+    { name = "textual", specifier = ">=7.5.0" },
 ]
 
 [package.metadata.requires-dev]

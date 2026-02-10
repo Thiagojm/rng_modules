@@ -1,4 +1,4 @@
-from bitbabbler_rng import is_device_available, get_bytes, get_bits, get_exact_bits
+from bitbabbler_rng import is_device_available, get_bytes, get_exact_bits
 import time
 
 t0 = time.time()

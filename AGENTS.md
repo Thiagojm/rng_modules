@@ -12,8 +12,17 @@ uv sync
 # Run Python script
 uv run python main.py
 
-# Run a specific test script
-uv run python rng_devices/test_pseudo.py
+# Run tests with pytest
+uv run pytest
+
+# Run a specific test
+uv run pytest tests/rng_devices/test_pseudo.py
+
+# Run tests in parallel
+uv run pytest -x
+
+# Run a specific test script directly
+uv run python tests/rng_devices/test_pseudo.py
 uv run python rng_devices/test_bit.py
 uv run python rng_devices/test_true.py
 
@@ -24,7 +33,7 @@ uv add <package>
 uv lock
 ```
 
-**Note:** No formal test framework (pytest) is configured. Tests are standalone scripts.
+**Note:** Tests use pytest with asyncio support. Standalone test scripts are also available for direct execution.
 
 ## Code Style Guidelines
 
@@ -99,13 +108,19 @@ uv lock
   ```
 
 ### API Design Patterns
-- Each RNG module exposes consistent interface:
+- Each RNG module exposes consistent sync interface:
   - `is_device_available() -> bool`
   - `get_bytes(n: int) -> bytes`
   - `get_bits(n: int) -> bytes`
   - `get_exact_bits(n: int) -> bytes`
-  - `random_int(min, max) -> int`
+  - `random_int(min_val: int, max_val: int) -> int`
   - `close() -> None`
+- Each function has an async version with `_async` suffix:
+  - `get_bytes_async(n: int) -> bytes`
+  - `get_bits_async(n: int) -> bytes`
+  - `get_exact_bits_async(n: int) -> bytes`
+  - `random_int_async(min_val: int, max_val: int) -> int`
+  - `close_async() -> None`
 
 ### Hardware Device Handling
 - Cache device handles (module-level `_cached_device`)
@@ -123,6 +138,7 @@ uv lock
 rng_devices/
 ├── bitbabbler_rng/     # USB FTDI-based RNG
 ├── truerng/            # Serial port RNG
+├── intel_seed/         # Intel/AMD CPU RDSEED instruction
 └── pseudo_rng/         # Software fallback
 ```
 

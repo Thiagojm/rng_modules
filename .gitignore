@@ -20,13 +20,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
-# PyInstaller
-#  - https://github.com/pyinstaller/pyinstaller/issues/1186
-#  -  This will fail on a new CI server
-#  - Remove the default file and add your own if you want to use it
-#  - Or just leave this here and ignore the warning that appears in CI
-#*pyi-build-*
+*.csv
 
 # IDE
 .vscode/

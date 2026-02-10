@@ -69,10 +69,9 @@ def test_api_compatibility():
         print(f"FAILED: {len(errors)} error(s) found")
         for error in errors:
             print(f"  - {error}")
-        return False
+        assert False, f"{len(errors)} API compatibility error(s) found"
     else:
         print("SUCCESS: All modules have compatible APIs!")
-        return True
 
 
 def test_random_int_semantics():
@@ -112,10 +111,9 @@ def test_random_int_semantics():
         print(f"\nFAILED: {len(errors)} error(s)")
         for error in errors:
             print(f"  - {error}")
-        return False
+        assert False, f"{len(errors)} random_int semantic error(s)"
     else:
         print("\n[OK] random_int semantics are correct!")
-        return True
 
 
 if __name__ == "__main__":

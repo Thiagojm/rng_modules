@@ -19,12 +19,22 @@ Example:
 """
 
 import asyncio
+import math
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
-import time
 
 # Module-level executor for async operations (1 worker to prevent concurrent hardware access)
 _executor = ThreadPoolExecutor(max_workers=1)
+
+
+def _get_executor() -> ThreadPoolExecutor:
+    """Get the executor, recreating it if it was shut down."""
+    global _executor
+    if _executor._shutdown:
+        _executor = ThreadPoolExecutor(max_workers=1)
+    return _executor
+
 
 # Import bbpy modules from same package
 try:
@@ -192,8 +202,6 @@ def random_int(min_val: int = 0, max_val: Optional[int] = None, folds: int = 0) 
             f"min_val must be less than max_val, got min_val={min_val}, max_val={max_val}"
         )
 
-    import math
-
     range_size = max_val - min_val
     bits_needed = max(1, math.ceil(math.log2(range_size)))
     n_bytes = (bits_needed + 7) // 8
@@ -249,7 +257,7 @@ async def get_bytes_async(n: int, folds: int = 0) -> bytes:
     """
     loop = asyncio.get_running_loop()
     try:
-        return await loop.run_in_executor(_executor, get_bytes, n, folds)
+        return await loop.run_in_executor(_get_executor(), get_bytes, n, folds)
     except asyncio.CancelledError:
         # Cleanup on cancellation
         close()
@@ -273,7 +281,7 @@ async def get_bits_async(n: int, folds: int = 0) -> bytes:
     """
     loop = asyncio.get_running_loop()
     try:
-        return await loop.run_in_executor(_executor, get_bits, n, folds)
+        return await loop.run_in_executor(_get_executor(), get_bits, n, folds)
     except asyncio.CancelledError:
         close()
         raise
@@ -296,7 +304,7 @@ async def get_exact_bits_async(n: int, folds: int = 0) -> bytes:
     """
     loop = asyncio.get_running_loop()
     try:
-        return await loop.run_in_executor(_executor, get_exact_bits, n, folds)
+        return await loop.run_in_executor(_get_executor(), get_exact_bits, n, folds)
     except asyncio.CancelledError:
         close()
         raise
@@ -323,7 +331,7 @@ async def random_int_async(
     loop = asyncio.get_running_loop()
     try:
         return await loop.run_in_executor(
-            _executor, random_int, min_val, max_val, folds
+            _get_executor(), random_int, min_val, max_val, folds
         )
     except asyncio.CancelledError:
         close()
@@ -335,8 +343,9 @@ async def close_async() -> None:
 
     Calls sync close() and shuts down the executor.
     """
+    global _executor
     loop = asyncio.get_running_loop()
     try:
-        await loop.run_in_executor(_executor, close)
+        await loop.run_in_executor(_get_executor(), close)
     finally:
         _executor.shutdown(wait=False)
