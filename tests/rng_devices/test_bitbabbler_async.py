@@ -130,7 +130,7 @@ async def test_random_int_async():
         # Test without range (32-bit)
         val = await random_int_async()
         assert isinstance(val, int), "Should return int"
-        print(f"  [OK] random_int_async() returned 32-bit int")
+        print("  [OK] random_int_async() returned 32-bit int")
 
         # Test with folding
         val = await random_int_async(0, 100, folds=1)

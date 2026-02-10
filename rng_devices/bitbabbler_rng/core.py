@@ -19,9 +19,10 @@ Example:
 """
 
 import asyncio
+import math
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
-import time
 
 # Module-level executor for async operations (1 worker to prevent concurrent hardware access)
 _executor = ThreadPoolExecutor(max_workers=1)
@@ -191,8 +192,6 @@ def random_int(min_val: int = 0, max_val: Optional[int] = None, folds: int = 0) 
         raise ValueError(
             f"min_val must be less than max_val, got min_val={min_val}, max_val={max_val}"
         )
-
-    import math
 
     range_size = max_val - min_val
     bits_needed = max(1, math.ceil(math.log2(range_size)))

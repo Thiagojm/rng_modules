@@ -18,8 +18,6 @@ Features:
 import asyncio
 import csv
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -668,6 +666,11 @@ class RNGCollectorApp(App):
             await self.action_stop()
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the RNG Collector TUI."""
     app = RNGCollectorApp()
     app.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -7,11 +7,13 @@ Dependencies: pyserial
 """
 
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from serial.tools import list_ports
-import serial
+import math
 import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
+
+import serial
+from serial.tools import list_ports
 
 # Module-level executor for async operations (1 worker to prevent concurrent hardware access)
 _executor = ThreadPoolExecutor(max_workers=1)
@@ -193,8 +195,6 @@ def random_int(min_val: int = 0, max_val: Optional[int] = None) -> int:
     range_size = max_val - min_val
 
     # Calculate bits needed
-    import math
-
     bits_needed = max(1, math.ceil(math.log2(range_size)))
     n_bytes = (bits_needed + 7) // 8
 

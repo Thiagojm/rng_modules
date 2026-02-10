@@ -58,10 +58,10 @@ def test_individual_modules():
                     # Test get_bytes
                     data = module.get_bytes(32)
                     if len(data) == 32:
-                        print(f"  [OK] get_bytes(32) works")
+                        print("  [OK] get_bytes(32) works")
                     else:
                         errors.append(f"{name}: get_bytes returned {len(data)} bytes")
-                        print(f"  [FAIL] get_bytes returned wrong size")
+                        print("  [FAIL] get_bytes returned wrong size")
 
                     # Test random_int
                     val = module.random_int(0, 10)
@@ -69,7 +69,7 @@ def test_individual_modules():
                         print(f"  [OK] random_int(0, 10) = {val}")
                     else:
                         errors.append(f"{name}: random_int returned {val}")
-                        print(f"  [FAIL] random_int out of range")
+                        print("  [FAIL] random_int out of range")
 
                 except Exception as e:
                     errors.append(f"{name}: Basic operations failed: {e}")

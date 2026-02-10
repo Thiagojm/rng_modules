@@ -86,28 +86,30 @@ def get_exact_bits(n: int) -> bytes:
     return secrets.token_bytes(n_bytes)
 
 
-def random_int(min: int = 0, max: Optional[int] = None) -> int:
+def random_int(min_val: int = 0, max_val: Optional[int] = None) -> int:
     """Generate a cryptographically secure random integer.
 
     Args:
-        min: Minimum value (inclusive). Defaults to 0.
-        max: Maximum value (exclusive). If None, generates using full range.
+        min_val: Minimum value (inclusive). Defaults to 0.
+        max_val: Maximum value (exclusive). If None, generates using full range.
 
     Returns:
-        Random integer in range [min, max) if max is specified.
+        Random integer in range [min_val, max_val) if max_val is specified.
 
     Raises:
-        ValueError: If min >= max or if min < 0 when max is None
+        ValueError: If min_val >= max_val or if min_val < 0 when max_val is None
     """
-    if max is None:
-        if min < 0:
-            raise ValueError("min must be non-negative when max is None")
-        return secrets.randbelow(min) if min > 0 else secrets.randbits(32)
+    if max_val is None:
+        if min_val < 0:
+            raise ValueError("min_val must be non-negative when max_val is None")
+        return secrets.randbelow(min_val) if min_val > 0 else secrets.randbits(32)
 
-    if min >= max:
-        raise ValueError(f"min must be less than max, got min={min}, max={max}")
+    if min_val >= max_val:
+        raise ValueError(
+            f"min_val must be less than max_val, got min_val={min_val}, max_val={max_val}"
+        )
 
-    return min + secrets.randbelow(max - min)
+    return min_val + secrets.randbelow(max_val - min_val)
 
 
 def close() -> None:

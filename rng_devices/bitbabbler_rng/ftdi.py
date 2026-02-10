@@ -1,6 +1,6 @@
 import os
 import time
-from typing import Optional, Tuple
+from typing import Optional
 
 # Try to select libusb1 backend explicitly before importing usb.core
 from usb.backend import libusb1 as _libusb1
