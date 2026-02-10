@@ -7,22 +7,20 @@ XOR folding. Includes a resilient bitrate selection and auto-detection in
 VID:PID is not found.
 """
 import time
-from typing import Optional
 
 from .ftdi import (
-    FTDIDevice,
     FTDI_VENDOR_ID,
     MPSSE_DATA_BYTE_IN_POS_MSB,
+    MPSSE_NO_3PHASE_CLK,
     MPSSE_NO_ADAPTIVE_CLK,
     MPSSE_NO_CLK_DIV5,
     MPSSE_NO_LOOPBACK,
-    MPSSE_NO_3PHASE_CLK,
     MPSSE_SEND_IMMEDIATE,
     MPSSE_SET_CLK_DIVISOR,
     MPSSE_SET_DATABITS_HIGH,
     MPSSE_SET_DATABITS_LOW,
+    FTDIDevice,
 )
-
 
 BB_VENDOR_ID = FTDI_VENDOR_ID
 BB_PRODUCT_ID = 0x7840
@@ -69,7 +67,7 @@ class BitBabbler(FTDIDevice):
     Handles MPSSE initialization and exposes convenience methods to read raw
     and folded entropy. Use `BitBabbler.open()` for discovery and setup.
     """
-    def __init__(self, ftdi: FTDIDevice, bitrate: Optional[int] = None, latency_ms: Optional[int] = None,
+    def __init__(self, ftdi: FTDIDevice, bitrate: int | None = None, latency_ms: int | None = None,
                  enable_mask: int = 0x0F, disable_polarity: int = 0x00) -> None:
         super().__init__(ftdi.dev, ftdi.in_ep, ftdi.out_ep, ftdi.wMaxPacketSize, ftdi.interface_index, ftdi.timeout_ms)
         self.bitrate = real_bitrate(bitrate or 2_500_000)
@@ -82,7 +80,7 @@ class BitBabbler(FTDIDevice):
         self.latency_ms = latency_ms if latency_ms is not None else default_latency
 
     @staticmethod
-    def open(serial: Optional[str] = None) -> "BitBabbler":
+    def open(serial: str | None = None) -> "BitBabbler":
         """Open and initialize a BitBabbler device.
 
         Attempts the canonical VID:PID first, then falls back to scanning all

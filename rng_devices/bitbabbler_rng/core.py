@@ -22,7 +22,6 @@ import asyncio
 import math
 import time
 from concurrent.futures import ThreadPoolExecutor
-from typing import Optional
 
 # Module-level executor for async operations (1 worker to prevent concurrent hardware access)
 _executor = ThreadPoolExecutor(max_workers=1)
@@ -45,7 +44,7 @@ except Exception:
     _bb_available = False
 
 # Device cache
-_cached_device: Optional[object] = None
+_cached_device: object | None = None
 
 
 def is_device_available() -> bool:
@@ -56,6 +55,10 @@ def is_device_available() -> bool:
     """
     if not _bb_available:
         return False
+
+    # If we have a cached device, assume it's still available
+    if _cached_device is not None:
+        return True
 
     try:
         bb = _bb.BitBabbler.open()
@@ -70,7 +73,7 @@ def is_device_available() -> bool:
         return False
 
 
-def _get_device() -> Optional[object]:
+def _get_device() -> object | None:
     """Get cached BitBabbler device or open new one."""
     global _cached_device
 
@@ -179,7 +182,7 @@ def _bytes_to_int(data: bytes) -> int:
     return int.from_bytes(data, "big")
 
 
-def random_int(min_val: int = 0, max_val: Optional[int] = None, folds: int = 0) -> int:
+def random_int(min_val: int = 0, max_val: int | None = None, folds: int = 0) -> int:
     """Generate a cryptographically secure random integer from BitBabbler.
 
     Args:
@@ -311,7 +314,7 @@ async def get_exact_bits_async(n: int, folds: int = 0) -> bytes:
 
 
 async def random_int_async(
-    min_val: int = 0, max_val: Optional[int] = None, folds: int = 0
+    min_val: int = 0, max_val: int | None = None, folds: int = 0
 ) -> int:
     """Async version of random_int.
 
